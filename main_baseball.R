@@ -1,0 +1,178 @@
+setwd("~/ECON203B Project")
+library(tidyverse)
+library(stargazer)
+library(plm)
+library(baseballr)
+library(AER)
+library(openintro)
+library(ggpubr)
+library(Lahman)
+library(regclass)
+library(DAAG)
+rm(list = ls())
+
+
+df <- mlb_teams
+df <- subset(df, df$year >= 1998)
+df <- df[df$year != 2020,]
+df98 <- subset(df, df$year == 1998)
+df <-  df %>%
+  mutate(division_winner = ifelse(division_winner=='N',0,1))%>%
+  mutate(wild_card_winner = ifelse(wild_card_winner=='N',0,1))%>%
+  mutate(league_winner = ifelse(league_winner=='N',0,1))%>%
+  mutate(world_series_winner = ifelse(world_series_winner=='N',0,1))
+
+df$obp <- (df$hits + df$batters_hit_by_pitch + df$walks)/(df$at_bats +df$batters_hit_by_pitch + df$sacrifice_flies + df$walks)
+df$whip <- (df$walks_allowed + df$hits_allowed)/(df$outs_pitches/3)
+
+#cor
+
+
+
+sdf <- subset(df, select=c(runs_scored, obp, homeruns, earned_run_average, whip, factor(team_name), year))
+stargazer(sdf, keep=c('runs_scored', 'obp', 'homeruns', 'earned_run_average', 'whip', 'year', 'teams_name'), 
+          covariate.labels=c('Run Scored', 'On Base Percentage', 'Homeruns', 'Earned Run Average', 'Walks And Hits Per Inning Pitched', 'Teams', 'Years'), 
+          title = 'Summary Statistic', type = "latex")
+
+
+reg.1 <- glm(division_winner ~ runs_scored  + obp + homeruns + earned_run_average + whip + factor(year) + 
+                 factor(team_name), data=df, binomial(link = "logit"))
+vif.1 <- car::vif(reg.1)
+reg.2 <- glm(division_winner ~ runs_scored  + obp + homeruns + factor(year) + 
+                   factor(team_name), data=df, binomial(link = "logit"))
+vif.2 <- car::vif(reg.2)
+reg.3 <- glm(division_winner ~ earned_run_average + whip + factor(year) + 
+                   factor(team_name), data=df, binomial(link = "logit"))
+vif.3 <- car::vif(reg.3)
+reg.4 <- glm(division_winner ~ whip + factor(year) + 
+                     factor(team_name), data=df, binomial(link = "logit"))
+vif.4 <- car::vif(reg.4)
+reg.5 <- glm(division_winner ~ earned_run_average + factor(year) + 
+                 factor(team_name), data=df, binomial(link = "logit"))
+vif.5 <- car::vif(reg.5)
+reg.6 <- glm(division_winner ~ runs_scored + factor(year) + 
+                 factor(team_name), data=df, binomial(link = "logit"))
+vif.6 <- car::vif(reg.6)
+reg.7 <- glm(division_winner ~ obp + factor(year) + 
+                    factor(team_name), data=df, binomial(link = "logit"))
+vif.7 <- car::vif(reg.7)
+reg.8 <- glm(division_winner ~ runs_scored + earned_run_average + factor(year) + 
+                 factor(team_name), data=df, binomial(link = "logit"))
+vif.8 <- car::vif(reg.8)
+
+#lpm
+lpm.1 <- glm(division_winner ~ runs_scored  + obp + homeruns + earned_run_average + whip + factor(year) + 
+                 factor(team_name), data=df)
+
+lpm.2 <- glm(division_winner ~ runs_scored  + obp + homeruns + factor(year) + 
+                   factor(team_name), data=df)
+
+lpm.3 <- glm(division_winner ~ earned_run_average + whip + factor(year) + 
+                   factor(team_name), data=df)
+
+lpm.4 <- glm(division_winner ~ earned_run_average + runs_scored + factor(year) + 
+                   factor(team_name), data=df)
+
+
+
+
+l_win <- glm(league_winner ~ runs_scored  + obp + homeruns + earned_run_average + whip  + factor(year) + factor(team_name),
+             data=df, binomial(link = "logit"))
+summary(l_win, ROBUST = T)
+
+wc_win <- glm(wild_card_winner ~  runs_scored  + obp + homeruns + earned_run_average + whip + factor(year) + factor(team_name),
+              data=df, binomial(link = "logit"))
+summary(wc_win, ROBUST = T)
+
+ws_win <- glm(world_series_winner ~  runs_scored  + obp + homeruns + earned_run_average + whip  + factor(year) + factor(team_name),
+              data=df, binomial(link = "logit"))
+summary(ws_win, ROBUST = T)
+
+stargazer(reg.1 ,reg.2, reg.3, reg.4, reg.5, reg.6, reg.7, reg.8,
+          keep=c('runs_scored', 'obp', 'homeruns', 'earned_run_average', 'whip', 'Constant'), 
+          covariate.labels=c('Run Scored', 'On Base Percentage', 'Homeruns', 'Earned Run Average', 'Walks And Hits Per Inning Pitched', 'Constant'), 
+          dep.var.labels=c("Division Win"), 
+          title = 'Logistic Regression', type='latex')
+#vif
+
+stargazer(vif.1,vif.2,vif.3, vif.4, vif.5, vif.6, vif.7, vif.8,type='latex')
+
+stargazer(reg.1, reg.2, reg.3, reg.8, lpm.1, lpm.2,lpm.3, lpm.4,
+          keep=c('runs_scored', 'obp', 'homeruns', 'earned_run_average', 'whip', 'Constant'), 
+          covariate.labels=c('Run Scored', 'On Base Percentage', 'Homeruns', 'Earned Run Average', 'Walks And Hits Per Inning Pitched', 'Constant'),
+          dep.var.labels=c("Division Win"),
+          title = 'Logistic Regression', type='latex')
+
+stargazer(div_win, l_win, wc_win, ws_win,   keep=c('runs_scored', 'obp', 'homeruns', 'earned_run_average', 'whip', 'Constant'), 
+          covariate.labels=c('Run Scored', 'On Base Percentage', 'Homeruns', 'Earned Run Average', 'Walks And Hits Per Inning Pitched', 'Constant'), 
+          dep.var.labels=c("Division Win","League Win", 'Wild Card Win', 'World Series Win'), 
+          title = 'Logistic Regression', type='latex')
+
+div <- ggplot(df, aes(x=earned_run_average, y=division_winner))+
+  geom_point()+
+  geom_smooth(method="glm", method.args=list(family= binomial('logit')), se = F,aes(color = "Logistic")) + 
+  geom_smooth(method='lm', aes(color='Linear'), se = F) + scale_fill_continuous(name = "Points") + 
+  scale_color_manual(name = "Model Type", values = c("Logistic" = "blue", "Linear" = "red"))+
+  xlab('Earned Run Average') + 
+  ylab('Division Winner') +
+  ggtitle("Logistic Model: Division Winner")
+l <- ggplot(df, aes(x=earned_run_average, y=league_winner))+
+  geom_point()+
+  geom_smooth(method="glm", method.args=list(family= binomial('logit')), se = F,aes(color = "Logistic")) + 
+  geom_smooth(method='lm', aes(color='Linear'), se = F) + scale_fill_continuous(name = "Points") + 
+  scale_color_manual(name = "Model Type", values = c("Logistic" = "blue", "Linear" = "red"))+
+  xlab('Earned Run Average') + 
+  ylab('League Winner') +
+  ggtitle("Logistic Model: League Winner")
+wc <- ggplot(df, aes(x=earned_run_average, y=wild_card_winner))+
+  geom_point()+
+  geom_smooth(method="glm", method.args=list(family= binomial('logit')), se = F,aes(color = "Logistic")) + 
+  geom_smooth(method='lm', aes(color='Linear'), se = F) + scale_fill_continuous(name = "Points") + 
+  scale_color_manual(name = "Model Type", values = c("Logistic" = "blue", "Linear" = "red"))+
+  xlab('Earned Run Average') + 
+  ylab('Wild Card Winner') +
+  ggtitle("Logistic Model: Wild Card Winner")
+ws <- ggplot(df, aes(x=earned_run_average, y=world_series_winner))+
+  geom_point()+
+  geom_smooth(method="glm", method.args=list(family= binomial('logit')), se = F,aes(color = "Logistic")) + 
+  geom_smooth(method='lm', aes(color='Linear'), se = F) + scale_fill_continuous(name = "Points") + 
+  scale_color_manual(name = "Model Type", values = c("Logistic" = "blue", "Linear" = "red"))+
+  xlab('Earned Run Average') + 
+  ylab('World Series Winner') +
+  ggtitle("Logistic Model: World Series Winner")
+ggarrange(div, l, wc, ws, ncol = 2, nrow = 2)  
+
+rs <- ggplot(df, aes(x=runs_scored, y=division_winner))+
+  geom_point()+
+  geom_smooth(method="glm", method.args=list(family= binomial('logit')), se = F,aes(color = "Logistic")) + 
+  geom_smooth(method='lm', aes(color='Linear'), se = F) + scale_fill_continuous(name = "Points") + 
+  scale_color_manual(name = "Model Type", values = c("Logistic" = "blue", "Linear" = "red"))+
+  xlab('Run scored') + 
+  ylab('Division Winner') +
+  ggtitle("Logistic Model: Runs Scored")
+fb <- ggplot(df, aes(x=obp, y=division_winner))+
+  geom_point()+
+  geom_smooth(method="glm", method.args=list(family= binomial('logit')), se = F,aes(color = "Logistic")) + 
+  geom_smooth(method='lm', aes(color='Linear'), se = F) + scale_fill_continuous(name = "Points") + 
+  scale_color_manual(name = "Model Type", values = c("Logistic" = "blue", "Linear" = "red"))+
+  xlab('On Base Percentage') + 
+  ylab('Division Winner') +
+  ggtitle("Logistic Model: OBP")
+h <- ggplot(df, aes(x=whip, y=division_winner))+
+  geom_point()+
+  geom_smooth(method="glm", method.args=list(family= binomial('logit')), se = F,aes(color = "Logistic")) + 
+  geom_smooth(method='lm', aes(color='Linear'), se = F) + scale_fill_continuous(name = "Points") + 
+  scale_color_manual(name = "Model Type", values = c("Logistic" = "blue", "Linear" = "red"))+
+  xlab('Walks And Hits Per Inning Pitched') + 
+  ylab('Division Winner') +
+  ggtitle("Logistic Model: WHIP")
+era <- ggplot(df, aes(x=earned_run_average, y=division_winner))+
+  geom_point()+
+  geom_smooth(method="glm", method.args=list(family= binomial('logit')), se = F,aes(color = "Logistic")) + 
+  geom_smooth(method='lm', aes(color='Linear'), se = F) + scale_fill_continuous(name = "Points") + 
+  scale_color_manual(name = "Model Type", values = c("Logistic" = "blue", "Linear" = "red"))+                                                                                             
+  xlab('Earned Run Average') + 
+  ylab('Division Winner') +
+  ggtitle("Logistic Model: ERA")
+ggarrange(era, rs, fb, h, ncol = 2, nrow = 2)
+
